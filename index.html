@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>台股日報 - 熱門族群追蹤</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { fontFamily: { sans: ['"Noto Sans TC"', 'sans-serif'] } } }
+    }
+  </script>
+
+  <style>
+    .ticker-up { color: #ef4444; }
+    .ticker-down { color: #10b981; }
+  </style>
+</head>
+
+<body class="font-sans antialiased min-h-screen flex flex-col bg-gray-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+
+  <nav class="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <div class="flex items-center">
+          <div class="flex-shrink-0 flex items-center gap-2 cursor-pointer" onclick="window.location.href='/'">
+            <i class="fa-solid fa-chart-line text-blue-600 text-2xl"></i>
+            <span class="font-bold text-xl tracking-tight text-slate-900 dark:text-white">台股日報</span>
+          </div>
+          <div class="hidden md:ml-6 md:flex md:space-x-8">
+            <a href="/" class="border-blue-500 text-slate-900 dark:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+              即時新聞
+            </a>
+            <a href="/trends.html" class="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+              大盤走勢
+            </a>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- ✅ NEW: 手動刷新熱門快訊 -->
+          <button id="hotRefreshBtn"
+                  class="text-xs px-3 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700 transition"
+                  title="立刻刷新《熱門族群》快訊">
+            刷新快訊
+          </button>
+
+          <button id="themeToggle" class="ml-1 p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700 focus:outline-none">
+            <i class="fa-solid fa-moon"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="bg-slate-900 text-white py-2">
+    <div class="max-w-7xl mx-auto px-4 flex justify-between items-center text-sm">
+      <div class="text-gray-300 text-xs">
+        更新頻率：左欄 10:00-13:00 每小時更新（可手動刷新）；右欄 17:00 更新（收盤資料）
+      </div>
+      <div class="hidden md:block text-gray-400 text-xs whitespace-nowrap" id="currentTime">Loading...</div>
+    </div>
+  </div>
+
+  <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <div class="mb-8">
+      <h1 class="text-3xl font-black text-black dark:text-white">每日股市焦點</h1>
+      <p class="text-gray-600 dark:text-gray-300 mt-1">掌握最新資訊，精準捕捉<span class="text-blue-600 font-semibold">熱門族群</span>動態</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <!-- Left -->
+      <div class="lg:col-span-5 space-y-6">
+        <section class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+              <i class="fa-solid fa-fire text-orange-500"></i> 《熱門族群》快訊（標題＋連結）
+            </h3>
+            <span class="text-xs text-gray-400" id="hotUpdatedAt">--</span>
+          </div>
+          <div id="hotLinks" class="space-y-3">
+            <div class="text-sm text-gray-500">載入中...</div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right -->
+      <div class="lg:col-span-7 space-y-6">
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+              <i class="fa-solid fa-chart-pie text-blue-500"></i> 盤後資訊 / 盤中即時
+            </h3>
+            <span id="marketStatus" class="text-xs text-gray-500">--</span>
+          </div>
+
+          <div class="space-y-4">
+            <div class="border-b border-gray-100 dark:border-slate-700 pb-4">
+              <div class="text-xs text-gray-500 mb-1">資料日期</div>
+              <div id="closeDate" class="font-semibold">--</div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-gray-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                <div class="text-xs text-gray-500">加權指數</div>
+                <div class="text-lg font-bold" id="taiexClose">--</div>
+                <div class="text-xs" id="taiexMove">--</div>
+              </div>
+              <div class="bg-gray-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                <div class="text-xs text-gray-500">櫃買指數</div>
+                <div class="text-lg font-bold" id="tpexClose">--</div>
+                <div class="text-xs text-gray-500" id="tpexMove">--</div>
+              </div>
+            </div>
+
+            <div class="pt-2">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="text-sm font-semibold">成交值排行榜 Top30（收盤／市值為盤後）</h4>
+                <a href="/trends.html" class="text-xs text-blue-600 hover:underline">看近5日</a>
+              </div>
+
+              <div id="top30List" class="divide-y divide-gray-100 dark:divide-slate-700">
+                <div class="text-sm text-gray-500 py-2">載入中...</div>
+              </div>
+            </div>
+
+            <div class="text-xs text-gray-500">點擊個股名稱可開啟 Yahoo 個股頁。</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // ===== DOM =====
+    const currentTimeEl = document.getElementById('currentTime');
+    const themeToggle = document.getElementById('themeToggle');
+    const marketStatusEl = document.getElementById('marketStatus');
+
+    const hotLinksEl = document.getElementById('hotLinks');
+    const hotUpdatedAtEl = document.getElementById('hotUpdatedAt');
+    const hotRefreshBtn = document.getElementById('hotRefreshBtn');
+
+    const closeDateEl = document.getElementById('closeDate');
+    const taiexCloseEl = document.getElementById('taiexClose');
+    const taiexMoveEl  = document.getElementById('taiexMove');
+    const tpexCloseEl  = document.getElementById('tpexClose');
+    const tpexMoveEl   = document.getElementById('tpexMove');
+    const top30ListEl  = document.getElementById('top30List');
+
+    // ===== Time =====
+    function updateTime() {
+      const now = new Date();
+      currentTimeEl.innerText =
+        now.toLocaleDateString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit', weekday:'long' }) +
+        " " +
+        now.toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit' });
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    // ===== Dark mode =====
+    let isDark = false;
+    themeToggle.addEventListener('click', () => {
+      isDark = !isDark;
+      document.documentElement.classList.toggle('dark', isDark);
+      const icon = themeToggle.querySelector('i');
+      icon.classList.toggle('fa-moon', !isDark);
+      icon.classList.toggle('fa-sun', isDark);
+    });
+
+    // ===== Format helpers =====
+    function fmtClose(v){
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toFixed(2) : "--";
+    }
+    function fmtChange(v){
+      const n = Number(v);
+      if (!Number.isFinite(n)) return "--";
+      const sign = n > 0 ? "+" : "";
+      return sign + n.toFixed(2);
+    }
+    function pctClass(pctText){
+      if (!pctText || pctText === "--") return "text-gray-500";
+      return pctText.startsWith("-") ? "ticker-down" : "ticker-up";
+    }
+    function badgeHtml(label) {
+      const cls = label === "上櫃"
+        ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-200"
+        : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200";
+      return `<span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ${cls}">${label}</span>`;
+    }
+    function tagHtml(text) {
+      if (!text) return "";
+      const t = String(text).trim();
+      if (!t) return "";
+      return `<span class="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-200">${t}</span>`;
+    }
+    function fmtMcapB(v){
+      const n = Number(v);
+      if (!Number.isFinite(n)) return "--";
+      return n.toFixed(1);
+    }
+
+    // ===== Hot news render =====
+    function renderHotLinks(items) {
+      if (!items || items.length === 0) {
+        hotLinksEl.innerHTML = `<div class="text-sm text-gray-500">目前沒有《熱門族群》標題</div>`;
+        hotUpdatedAtEl.textContent = "--";
+        return;
+      }
+
+      const latestISO = items[0]?.publishedAtISO;
+      hotUpdatedAtEl.textContent = latestISO
+        ? new Date(latestISO).toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+        : "--";
+
+      hotLinksEl.innerHTML = items.map((n, idx) => {
+        const timeText = n.publishedAtISO
+          ? new Date(n.publishedAtISO).toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+          : '';
+        return `
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 text-xs text-gray-400 w-6">${idx + 1}.</span>
+            <a href="${n.link}" target="_blank" rel="noopener noreferrer"
+               class="text-sm font-medium text-slate-800 dark:text-slate-100 hover:text-blue-600 transition-colors leading-snug">
+              ${n.title}
+            </a>
+            <span class="ml-auto text-xs text-gray-400 whitespace-nowrap">${timeText}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    const NEWS_STORAGE_KEY = 'trending_sector_news';
+    const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
+
+    function cleanAndGetCachedNews() {
+      const storedData = localStorage.getItem(NEWS_STORAGE_KEY);
+      if (!storedData) return null;
+
+      try {
+        const parsedNews = JSON.parse(storedData);
+        if (!Array.isArray(parsedNews)) return null;
+        
+        const currentTime = Date.now();
+        // 如果新聞有 timestamp 屬性則使用，否則嘗試由 publishedAtISO 解析
+        const validNews = parsedNews.filter(news => {
+          const newsTime = news.timestamp || (news.publishedAtISO ? new Date(news.publishedAtISO).getTime() : currentTime);
+          const isExpired = (currentTime - newsTime) > THIRTY_DAYS_IN_MS;
+          return !isExpired;
+        });
+
+        // 若清理數量不同，寫回 localStorage
+        if (validNews.length !== parsedNews.length) {
+          console.log(`已自動清理 ${parsedNews.length - validNews.length} 則過期新聞。`);
+          localStorage.setItem(NEWS_STORAGE_KEY, JSON.stringify(validNews));
+        }
+
+        return validNews;
+      } catch (error) {
+        console.error("解析新聞快取時發生錯誤:", error);
+        return null;
+      }
+    }
+
+    async function loadHotLinks() {
+      try {
+        // 1. 先從 LocalStorage 載入並渲染 (清理過期舊新聞)
+        const cachedNews = cleanAndGetCachedNews();
+        if (cachedNews && cachedNews.length > 0) {
+          renderHotLinks(cachedNews);
+        }
+
+        // 2. 向後端拉取最新新聞
+        // ✅ FIX: 明確拉 31 天 + 稍微提高 limit，避免「幾天就消失」是前端參數/截斷造成
+        const res = await fetch("/api/hot?limit=80&days=31", { cache: "no-store" });
+        const data = await res.json();
+        
+        if (Array.isArray(data)) {
+          // 加入當前時間作為額外的 timestamp (提供備用檢查基準)
+          const currentTime = Date.now();
+          const dataWithTimestamp = data.map(n => ({ ...n, timestamp: currentTime }));
+          
+          // 寫入快取
+          localStorage.setItem(NEWS_STORAGE_KEY, JSON.stringify(dataWithTimestamp));
+          
+          // 渲染畫面
+          renderHotLinks(dataWithTimestamp);
+        } else {
+          renderHotLinks([]);
+        }
+      } catch (e) {
+        const cachedNews = cleanAndGetCachedNews();
+        if (!cachedNews || cachedNews.length === 0) {
+          hotLinksEl.innerHTML = `<div class="text-sm text-red-600">讀取快訊失敗：${e.message}</div>`;
+        }
+      }
+    }
+
+    // ✅ NEW: 手動刷新（打後端 /api/hot/refresh，再重新載入 /api/hot）
+    async function refreshHotNow() {
+      try {
+        hotRefreshBtn.disabled = true;
+        hotRefreshBtn.textContent = "刷新中...";
+
+        const res = await fetch("/api/hot/refresh", { cache: "no-store" });
+        const j = await res.json();
+        if (!j || j.ok !== true) throw new Error(j?.message || "refresh_failed");
+
+        await loadHotLinks();
+      } catch (e) {
+        alert("刷新失敗：" + (e?.message || e));
+      } finally {
+        hotRefreshBtn.disabled = false;
+        hotRefreshBtn.textContent = "刷新快訊";
+      }
+    }
+    hotRefreshBtn.addEventListener("click", refreshHotNow);
+
+    // ===== Top30 render (industry/sub + market cap) =====
+    let top30Base = []; // from /api/close
+
+    function renderTop30(list) {
+      if (!list || list.length === 0) {
+        top30ListEl.innerHTML = `<div class="text-sm text-gray-500 py-2">目前沒有排行資料</div>`;
+        return;
+      }
+
+      top30ListEl.innerHTML = `
+        <div class="pb-2 text-xs text-gray-400">
+          <div class="flex items-center gap-2 px-1">
+            <span class="w-7 text-right">#</span>
+            <span class="w-14">代碼</span>
+            <span class="w-14">市場</span>
+            <span class="flex-1">名稱 / 標籤</span>
+            <span class="w-14 text-right">即時</span>
+            <span class="w-14 text-right">漲跌</span>
+            <span class="w-14 text-right">漲跌幅</span>
+            <span class="w-16 text-right">市值(十億)</span>
+            <span class="w-16 text-right">連續</span>
+          </div>
+        </div>
+        <div class="divide-y divide-gray-100 dark:divide-slate-700" id="top30Rows"></div>
+      `;
+
+      const rowsEl = document.getElementById("top30Rows");
+      rowsEl.innerHTML = list.map((x, i) => {
+        const industry = (x.industry || "").trim();
+        const sub = (x.sub || "").trim();
+        const mLabel = x.marketLabel || (x.market === "TPEx" ? "上櫃" : "上市");
+
+        return `
+          <div class="py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-700/40 px-1 rounded">
+            <span class="text-xs text-gray-400 w-7 text-right">${i+1}</span>
+            <span class="font-mono text-sm w-14">${x.code}</span>
+            <span class="w-14">${badgeHtml(mLabel)}</span>
+
+            <div class="flex-1 min-w-0">
+              <button
+                class="text-sm truncate text-left text-slate-900 dark:text-slate-100 hover:text-blue-600 block w-full"
+                onclick="window.open('${x.yahooUrl}','_blank','noopener,noreferrer')"
+                title="開啟 Yahoo 個股頁"
+              >
+                ${x.name || ""}
+              </button>
+              <div class="mt-1 flex gap-2 items-center flex-wrap">
+                ${tagHtml(industry)}
+                ${tagHtml(sub)}
+              </div>
+            </div>
+
+            <span class="text-sm tabular-nums w-14 text-right" data-code="${x.code}" data-field="price">${fmtClose(x.close)}</span>
+
+            <span class="text-sm font-semibold tabular-nums w-14 text-right ${Number(x.change) < 0 ? 'ticker-down' : 'ticker-up'}"
+                  data-code="${x.code}" data-field="chg">
+              ${fmtChange(x.change)}
+            </span>
+
+            <span class="text-sm font-semibold tabular-nums w-14 text-right ${pctClass(x.pctChange)}"
+                  data-code="${x.code}" data-field="pct">
+              ${x.pctChange || "--"}
+            </span>
+
+            <span class="text-sm tabular-nums w-16 text-right text-gray-600 dark:text-gray-200">
+              ${fmtMcapB(x.marketCapB)}
+            </span>
+
+            <span class="text-sm tabular-nums w-16 text-right text-gray-600 dark:text-gray-200">
+              ${x.streakDays ? `連${x.streakDays}` : "連1"}
+            </span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // ===== Close data =====
+    async function loadClose() {
+      try {
+        const res = await fetch("/api/close", { cache: "no-store" });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        closeDateEl.innerText = data.dateISO || "--";
+
+        taiexCloseEl.innerText = data.taiex?.close ?? "--";
+        const taiexPct = data.taiex?.pct ? `${data.taiex.pct}%` : "--";
+        taiexMoveEl.innerText = `${data.taiex?.sign ?? ""}${data.taiex?.change ?? "--"} (${taiexPct})`;
+        taiexMoveEl.className = "text-xs " + (String(data.taiex?.sign||"").includes("-") ? "ticker-down" : "ticker-up");
+
+        tpexCloseEl.innerText = data.tpex?.close ?? "--";
+        tpexMoveEl.innerText = `${data.tpex?.change ?? "--"}（指數日期 ${data.tpex?.date ?? "--"}）`;
+
+        top30Base = Array.isArray(data.top30) ? data.top30 : [];
+        renderTop30(top30Base);
+      } catch (e) {
+        top30ListEl.innerHTML = `<div class="text-sm text-red-600 py-2">盤後資料讀取失敗：${e.message}</div>`;
+      }
+    }
+
+    // ===== Init =====
+    loadHotLinks();
+    loadClose();
+
+    // 固定顯示盤後（收盤）資料
+    marketStatusEl.textContent = "顯示收盤資料（每日 17:00 更新）";
+  </script>
+
+</body>
+</html>
+
+
+
+
+
+
+
